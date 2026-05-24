@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCurrentAdmin } from "@/lib/store";
 
 const captainSubItems = [
     {
@@ -41,6 +42,7 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const [currentAdmin, setCurrentAdmin] = useCurrentAdmin();
     const isCaptainSection =
         pathname.startsWith("/admin/applications") ||
         pathname.startsWith("/admin/captains") ||
@@ -119,6 +121,23 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         </svg>
                     </span>
                     الفورمات
+                </Link>
+
+                {/* Accounts Management */}
+                <Link
+                    href="/admin/accounts"
+                    onClick={onClose}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${pathname === "/admin/accounts"
+                        ? "bg-primary-50 text-primary-700 shadow-sm"
+                        : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                        }`}
+                >
+                    <span className={pathname === "/admin/accounts" ? "text-primary-600" : "text-text-tertiary"}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" />
+                        </svg>
+                    </span>
+                    إدارة الحسابات 🛡️
                 </Link>
 
                 {/* Captains group */}
@@ -231,16 +250,41 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </nav>
 
             {/* Bottom */}
-            <div className="p-3 border-t border-border">
+            <div className="p-3 border-t border-border space-y-2">
+                {currentAdmin && (
+                    <div className="flex items-center gap-3 p-2 bg-surface-alt rounded-xl border border-border/50">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-600/10 shrink-0">
+                            {currentAdmin.fullName.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-text-primary truncate">{currentAdmin.fullName}</p>
+                            <p className="text-[10px] text-text-tertiary truncate font-medium">{currentAdmin.email}</p>
+                        </div>
+                    </div>
+                )}
+                
                 <Link
                     href="/"
-                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
+                    className="flex items-center gap-3 rounded-xl px-4 py-2 text-xs font-bold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                    </svg>
+                    الموقع الرئيسي
+                </Link>
+
+                <button
+                    onClick={() => {
+                        setCurrentAdmin(null);
+                        onClose();
+                    }}
+                    className="w-full flex items-center gap-3 rounded-xl px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 transition-all text-right"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                     </svg>
-                    الصفحة الرئيسية
-                </Link>
+                    تسجيل الخروج
+                </button>
             </div>
         </div>
     );

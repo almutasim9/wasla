@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import {
-    mockApplications,
-    mockCaptains,
-    pipelineApplications,
-    studentApplications,
     type Captain,
     type CaptainApplication,
     type PipelineApplication,
@@ -22,7 +19,29 @@ const keys = {
     students: "wasla:students",
     subscriptions: "wasla:subscriptions",
     formSettings: "wasla:form-settings",
+    admins: "wasla:admins",
+    currentAdmin: "wasla:current-admin",
 };
+
+const tableNames = {
+    captainApplications: "captain_applications",
+    pipelineApplications: "pipeline_applications",
+    captains: "captains",
+    students: "students",
+    subscriptions: "subscriptions",
+    formSettings: "form_settings",
+    admins: "admins",
+};
+
+export type AdminUser = {
+    id: string;
+    fullName: string;
+    email: string;
+    password?: string;
+    createdAt: string;
+};
+
+export const defaultAdmins: AdminUser[] = [];
 
 export type FormSettings = {
     student: {
@@ -105,74 +124,7 @@ export interface Subscription {
     createdAt: string;
 }
 
-const initialSubscriptions: Subscription[] = [
-    {
-        id: "sub1",
-        studentIds: ["s1"],
-        studentPrices: { s1: 50000 },
-        captainId: "c1",
-        monthlyAmount: 50000,
-        routeNote: "الزهور إلى جامعة الموصل — صباحي",
-        status: "active",
-        startDate: "2026-02-22",
-        createdAt: "2026-02-22",
-    },
-    {
-        id: "sub2",
-        studentIds: ["s2"],
-        studentPrices: { s2: 50000 },
-        captainId: "c2",
-        monthlyAmount: 50000,
-        routeNote: "المجموعة إلى كلية الهندسة — صباحي",
-        status: "active",
-        startDate: "2026-02-20",
-        createdAt: "2026-02-20",
-    },
-    {
-        id: "sub3",
-        studentIds: ["s11"],
-        studentPrices: { s11: 50000 },
-        captainId: "c4",
-        monthlyAmount: 50000,
-        routeNote: "الحدباء إلى جامعة الموصل — صباحي",
-        status: "active",
-        startDate: "2026-03-04",
-        createdAt: "2026-03-04",
-    },
-    {
-        id: "sub4",
-        studentIds: ["s12"],
-        studentPrices: { s12: 50000 },
-        captainId: "c2",
-        monthlyAmount: 50000,
-        routeNote: "الكرامة إلى جامعة نينوى — مسائي",
-        status: "active",
-        startDate: "2026-03-03",
-        createdAt: "2026-03-03",
-    },
-    {
-        id: "sub5",
-        studentIds: ["s7"],
-        studentPrices: { s7: 50000 },
-        captainId: "c1",
-        monthlyAmount: 50000,
-        routeNote: "الرسالة إلى جامعة الموصل — متوقف لحين التجديد",
-        status: "paused",
-        startDate: "2026-02-17",
-        createdAt: "2026-02-17",
-    },
-    {
-        id: "sub6",
-        studentIds: ["s13"],
-        studentPrices: { s13: 50000 },
-        captainId: "c4",
-        monthlyAmount: 50000,
-        routeNote: "الوحدة إلى التقنية الشمالية — اشتراك سابق",
-        status: "ended",
-        startDate: "2026-02-11",
-        createdAt: "2026-02-11",
-    },
-];
+const initialSubscriptions: Subscription[] = [];
 
 type Identified = { id: string };
 
@@ -221,12 +173,63 @@ function mergeFormSettings(value: FormSettings): FormSettings {
     };
 }
 
+// -------------------------------------------------------------
+// Supabase Cloud Synchronisation Helpers
+// -------------------------------------------------------------
+
+async function fetchCloudCollection<T extends Identified>(tableName: string, fallback: T[]): Promise<T[]> {
+    try {
+        const { data, error } = await supabase.from(tableName).select("*");
+        if (error) {
+            console.error(`Supabase error fetching ${tableName}:`, error);
+            return fallback;
+        }
+        if (data && data.length > 0) {
+            return data as T[];
+        }
+
+        return fallback;
+    } catch (e) {
+        console.error(`Network error fetching ${tableName}:`, e);
+        return fallback;
+    }
+}
+
+async function saveCloudItem<T extends Identified>(tableName: string, item: T) {
+    try {
+        const { error } = await supabase.from(tableName).upsert(item);
+        if (error) {
+            console.error(`Supabase error saving item to ${tableName}:`, error);
+        }
+    } catch (e) {
+        console.error(`Network error saving item to ${tableName}:`, e);
+    }
+}
+
+async function saveCloudCollection<T extends Identified>(tableName: string, items: T[]) {
+    try {
+        const { error } = await supabase.from(tableName).upsert(items);
+        if (error) {
+            console.error(`Supabase error saving collection to ${tableName}:`, error);
+        }
+    } catch (e) {
+        console.error(`Network error saving collection to ${tableName}:`, e);
+    }
+}
+
+// -------------------------------------------------------------
+// Synchronized React hooks
+// -------------------------------------------------------------
+
 export function useStoredCollection<T extends Identified>(
     key: string,
+    tableName: string,
     fallback: T[],
     mergeFallback = false
 ) {
-    const [items, setItems] = useState<T[]>(fallback);
+    const [items, setItems] = useState<T[]>(() => {
+        return readCollection(key, fallback);
+    });
 
     useEffect(() => {
         const sync = () => {
@@ -236,6 +239,15 @@ export function useStoredCollection<T extends Identified>(
             setItems(next);
         };
         sync();
+
+        // Background sync from Supabase
+        const syncWithCloud = async () => {
+            const cloudItems = await fetchCloudCollection(tableName, fallback);
+            writeCollection(key, cloudItems);
+            setItems(cloudItems);
+        };
+        syncWithCloud();
+
         window.addEventListener(key, sync);
         window.addEventListener("storage", sync);
 
@@ -243,7 +255,7 @@ export function useStoredCollection<T extends Identified>(
             window.removeEventListener(key, sync);
             window.removeEventListener("storage", sync);
         };
-    }, [fallback, key, mergeFallback]);
+    }, [fallback, key, tableName, mergeFallback]);
 
     const updateItems = (updater: T[] | ((current: T[]) => T[])) => {
         setItems((current) => {
@@ -252,6 +264,10 @@ export function useStoredCollection<T extends Identified>(
                     ? (updater as (current: T[]) => T[])(current)
                     : updater;
             writeCollection(key, next);
+            
+            // Push upsert to Supabase
+            saveCloudCollection(tableName, next);
+
             return next;
         });
     };
@@ -262,28 +278,82 @@ export function useStoredCollection<T extends Identified>(
 export function useCaptainApplications() {
     return useStoredCollection<CaptainApplication>(
         keys.captainApplications,
-        mockApplications
+        tableNames.captainApplications,
+        []
     );
 }
 
 export function usePipelineApplications() {
     return useStoredCollection<PipelineApplication>(
         keys.pipelineApplications,
-        pipelineApplications
+        tableNames.pipelineApplications,
+        []
     );
 }
 
 export function useCaptains() {
-    return useStoredCollection<Captain>(keys.captains, mockCaptains, true);
+    return useStoredCollection<Captain>(
+        keys.captains,
+        tableNames.captains,
+        [],
+        true
+    );
 }
 
 export function useStudents() {
-    return useStoredCollection<StudentApplication>(keys.students, studentApplications, true);
+    return useStoredCollection<StudentApplication>(
+        keys.students,
+        tableNames.students,
+        [],
+        true
+    );
+}
+
+export function useAdmins() {
+    return useStoredCollection<AdminUser>(
+        keys.admins,
+        tableNames.admins,
+        defaultAdmins,
+        true
+    );
+}
+
+export function useCurrentAdmin() {
+    const [current, setCurrent] = useState<AdminUser | null>(null);
+
+    useEffect(() => {
+        const sync = () => {
+            if (typeof window === "undefined") return;
+            const raw = window.localStorage.getItem(keys.currentAdmin);
+            setCurrent(raw ? JSON.parse(raw) : null);
+        };
+        sync();
+        window.addEventListener(keys.currentAdmin, sync);
+        window.addEventListener("storage", sync);
+        return () => {
+            window.removeEventListener(keys.currentAdmin, sync);
+            window.removeEventListener("storage", sync);
+        };
+    }, []);
+
+    const updateCurrent = (val: AdminUser | null) => {
+        if (typeof window === "undefined") return;
+        if (val) {
+            window.localStorage.setItem(keys.currentAdmin, JSON.stringify(val));
+        } else {
+            window.localStorage.removeItem(keys.currentAdmin);
+        }
+        window.dispatchEvent(new Event(keys.currentAdmin));
+        setCurrent(val);
+    };
+
+    return [current, updateCurrent] as const;
 }
 
 export function useSubscriptions() {
     return useStoredCollection<Subscription>(
         keys.subscriptions,
+        tableNames.subscriptions,
         initialSubscriptions,
         true
     );
@@ -296,6 +366,32 @@ export function useFormSettings() {
         const sync = () =>
             setSettings(mergeFormSettings(readValue(keys.formSettings, defaultFormSettings)));
         sync();
+
+        // Background cloud sync
+        const syncWithCloud = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from(tableNames.formSettings)
+                    .select("*")
+                    .eq("id", "global")
+                    .single();
+                if (error) {
+                    console.error("Error fetching form settings from Supabase:", error);
+                }
+                if (data) {
+                    const merged = mergeFormSettings(data as FormSettings);
+                    writeValue(keys.formSettings, merged);
+                    setSettings(merged);
+                } else {
+                    // Seed initial config
+                    await supabase.from(tableNames.formSettings).upsert({ id: "global", ...defaultFormSettings });
+                }
+            } catch (e) {
+                console.error("Error syncing form settings with cloud:", e);
+            }
+        };
+        syncWithCloud();
+
         window.addEventListener(keys.formSettings, sync);
         window.addEventListener("storage", sync);
 
@@ -314,6 +410,15 @@ export function useFormSettings() {
                     ? (updater as (current: FormSettings) => FormSettings)(current)
                     : updater;
             writeValue(keys.formSettings, next);
+            
+            // Push update to Supabase
+            supabase
+                .from(tableNames.formSettings)
+                .upsert({ id: "global", ...next })
+                .then(({ error }) => {
+                    if (error) console.error("Error saving form settings to Supabase:", error);
+                });
+
             return next;
         });
     };
@@ -355,7 +460,7 @@ export type CaptainRegistrationPayload = {
 };
 
 export function addStudentRegistration(payload: StudentRegistrationPayload) {
-    const students = readCollection<StudentApplication>(keys.students, studentApplications);
+    const students = readCollection<StudentApplication>(keys.students, []);
     const createdAt = today();
     const student: StudentApplication = {
         id: uniqueId("s"),
@@ -377,13 +482,15 @@ export function addStudentRegistration(payload: StudentRegistrationPayload) {
     };
 
     writeCollection(keys.students, [student, ...students]);
+    // Save to Supabase Cloud
+    saveCloudItem(tableNames.students, student);
     return student;
 }
 
 export function addCaptainRegistration(payload: CaptainRegistrationPayload) {
     const applications = readCollection<CaptainApplication>(
         keys.captainApplications,
-        mockApplications
+        []
     );
     const createdAt = today();
     const application: CaptainApplication = {
@@ -394,17 +501,19 @@ export function addCaptainRegistration(payload: CaptainRegistrationPayload) {
     };
 
     writeCollection(keys.captainApplications, [application, ...applications]);
+    // Save to Supabase Cloud
+    saveCloudItem(tableNames.captainApplications, application);
     return application;
 }
 
 export function transferCaptainApplicationToPipeline(app: CaptainApplication) {
     const applications = readCollection<CaptainApplication>(
         keys.captainApplications,
-        mockApplications
+        []
     );
     const pipeline = readCollection<PipelineApplication>(
         keys.pipelineApplications,
-        pipelineApplications
+        []
     );
 
     const exists = pipeline.some((item) => item.id === `p-${app.id}`);
@@ -432,16 +541,35 @@ export function transferCaptainApplicationToPipeline(app: CaptainApplication) {
     };
 
     writeCollection(keys.captainApplications, updatedApplications);
+    
+    // Sync updated Application Status to Cloud
+    const updatedApp = updatedApplications.find((item) => item.id === app.id);
+    if (updatedApp) {
+        saveCloudItem(tableNames.captainApplications, updatedApp);
+    }
+
     if (!exists) {
         writeCollection(keys.pipelineApplications, [pipelineItem, ...pipeline]);
+        // Sync Pipeline Application to Cloud
+        saveCloudItem(tableNames.pipelineApplications, pipelineItem);
     }
 }
 
-export function createCaptainFromPipeline(app: PipelineApplication) {
-    const captains = readCollection<Captain>(keys.captains, mockCaptains);
-    if (captains.some((captain) => captain.phone === app.phone)) return;
+export function generateRandomPasscode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // readable characters
+    let code = "WSL-";
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
 
-    const captain: Captain = {
+export function createCaptainFromPipeline(app: PipelineApplication, passcode?: string) {
+    const captains = readCollection<Captain>(keys.captains, []);
+    const existingCaptain = captains.find((captain) => captain.phone === app.phone);
+    if (existingCaptain) return existingCaptain;
+
+    const captain: Captain & { passcode?: string } = {
         id: `c-${app.id}`,
         fullName: app.fullName,
         phone: app.phone,
@@ -456,7 +584,67 @@ export function createCaptainFromPipeline(app: PipelineApplication) {
         accountStatus: "active",
         approvedAt: today(),
         createdAt: app.createdAt,
+        passcode: passcode || generateRandomPasscode(),
     };
 
     writeCollection(keys.captains, [captain, ...captains]);
+    // Save to Supabase Cloud
+    saveCloudItem(tableNames.captains, captain);
+    return captain;
+}
+
+export function addAdminRegistration(payload: { fullName: string; email: string; password?: string }) {
+    const admins = readCollection<AdminUser>(keys.admins, defaultAdmins);
+    const createdAt = today();
+    const admin: AdminUser = {
+        id: uniqueId("admin"),
+        fullName: payload.fullName,
+        email: payload.email,
+        password: payload.password || "admin123",
+        createdAt,
+    };
+    writeCollection(keys.admins, [admin, ...admins]);
+    // Save to Supabase Cloud
+    saveCloudItem(tableNames.admins, admin);
+    return admin;
+}
+
+export function toggleCaptainStatus(id: string) {
+    const captains = readCollection<Captain>(keys.captains, []);
+    const updated = captains.map((c) => {
+        if (c.id === id) {
+            return {
+                ...c,
+                accountStatus: (c.accountStatus === "active" ? "suspended" : "active") as "active" | "suspended"
+            };
+        }
+        return c;
+    });
+    writeCollection(keys.captains, updated);
+    
+    // Sync single updated captain status to Supabase Cloud
+    const updatedCaptain = updated.find((c) => c.id === id);
+    if (updatedCaptain) {
+        saveCloudItem(tableNames.captains, updatedCaptain);
+    }
+}
+
+export function toggleStudentStatus(id: string) {
+    const students = readCollection<StudentApplication>(keys.students, []);
+    const updated = students.map((s) => {
+        if (s.id === id) {
+            return {
+                ...s,
+                status: (s.status === "active" ? "suspended" : "active") as "active" | "suspended" | "pending"
+            };
+        }
+        return s;
+    });
+    writeCollection(keys.students, updated);
+    
+    // Sync single updated student status to Supabase Cloud
+    const updatedStudent = updated.find((s) => s.id === id);
+    if (updatedStudent) {
+        saveCloudItem(tableNames.students, updatedStudent);
+    }
 }
