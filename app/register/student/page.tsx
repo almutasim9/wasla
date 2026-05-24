@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-const universities = [
-    "جامعة الموصل",
-    "جامعة نينوى",
-    "الجامعة التقنية الشمالية",
-    "كلية المنصور الجامعة",
-    "كلية النور الجامعة",
-];
+import { addStudentRegistration, useFormSettings } from "@/lib/store";
+import type { StudentGender, StudentShift } from "@/lib/mock-data";
 
 export default function StudentRegisterPage() {
+    const [settings] = useFormSettings();
+    const formSettings = settings.student;
     const [formData, setFormData] = useState({
         fullName: "",
         gender: "" as "" | "male" | "female",
@@ -34,14 +30,17 @@ export default function StudentRegisterPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.gender || !formData.shift) return;
         const payload = {
             ...formData,
+            gender: formData.gender as StudentGender,
+            shift: formData.shift as StudentShift,
             university:
                 formData.university === "other"
                     ? formData.customUniversity
                     : formData.university,
         };
-        console.log("Student registration:", payload);
+        addStudentRegistration(payload);
         setSubmitted(true);
     };
 
@@ -123,6 +122,38 @@ export default function StudentRegisterPage() {
         );
     }
 
+    if (!formSettings.enabled) {
+        return (
+            <div className="min-h-screen bg-surface-alt">
+                <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border">
+                    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                        <div className="flex h-16 items-center justify-between">
+                            <Link href="/" className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white font-bold text-lg">
+                                    و
+                                </div>
+                                <span className="text-xl font-bold text-text-primary">وصلة</span>
+                            </Link>
+                        </div>
+                    </div>
+                </header>
+                <main className="pt-28 pb-16 px-4">
+                    <div className="mx-auto max-w-md rounded-2xl bg-white border border-border p-8 text-center shadow-sm">
+                        <h1 className="text-xl font-extrabold text-text-primary">
+                            تسجيل الطلاب مغلق حالياً
+                        </h1>
+                        <p className="mt-2 text-sm text-text-secondary">
+                            يرجى المحاولة لاحقاً أو التواصل مع إدارة وصلة.
+                        </p>
+                        <Link href="/" className="mt-6 inline-flex rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white">
+                            الرجوع للرئيسية
+                        </Link>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-surface-alt">
             {/* Top bar */}
@@ -154,17 +185,17 @@ export default function StudentRegisterPage() {
                             🎓
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary">
-                            تسجيل طالب جديد
+                            {formSettings.title}
                         </h1>
                         <p className="mt-2 text-text-secondary text-sm sm:text-base">
-                            عبّي بياناتك عشان نوفرلك أقصر طريق لجامعتك بأفضل سعر
+                            {formSettings.description}
                         </p>
 
                         {/* Info note */}
                         <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-3 text-right">
                             <span className="text-amber-500 text-sm mt-0.5">💡</span>
                             <p className="text-xs text-amber-700 leading-relaxed">
-                                هذه المعلومات لتقييم سعر الاشتراك وتوفير أقصر طريق لإتمام الرحلة
+                                {formSettings.note}
                             </p>
                         </div>
                     </div>
@@ -346,12 +377,14 @@ export default function StudentRegisterPage() {
                                     <option value="" disabled>
                                         اختر جامعتك
                                     </option>
-                                    {universities.map((uni) => (
+                                    {formSettings.universities.map((uni) => (
                                         <option key={uni} value={uni}>
                                             {uni}
                                         </option>
                                     ))}
-                                    <option value="other">أخرى</option>
+                                    {formSettings.allowOtherUniversity && (
+                                        <option value="other">أخرى</option>
+                                    )}
                                 </select>
                             </div>
 

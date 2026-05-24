@@ -3,11 +3,11 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-    studentApplications,
     studentStageConfig,
     type StudentApplication,
     type StudentPipelineStage,
 } from "@/lib/mock-data";
+import { useStudents } from "@/lib/store";
 
 const genderLabel = { male: "ذكر", female: "أنثى" };
 const shiftLabel = { morning: "صباحي ☀️", evening: "مسائي 🌙" };
@@ -48,6 +48,7 @@ function getStepIndex(stage: StudentPipelineStage): number {
 
 export default function StudentProfilePage() {
     const params = useParams();
+    const [studentApplications] = useStudents();
     const student = studentApplications.find(
         (s) => s.id === params.id
     ) as StudentApplication | undefined;

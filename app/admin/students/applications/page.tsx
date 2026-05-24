@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    studentApplications as initialStudents,
     studentStageConfig,
     type StudentApplication,
     type StudentPipelineStage,
     type CallResult,
     type PaymentMethod,
 } from "@/lib/mock-data";
+import { useStudents } from "@/lib/store";
 
 /* ── Call result labels ── */
 const callResultLabels: Record<CallResult, { label: string; emoji: string }> = {
@@ -38,7 +38,7 @@ const tabs: { key: TabKey; label: string; stages: StudentPipelineStage[] }[] = [
 ];
 
 export default function StudentApplicationsPage() {
-    const [students, setStudents] = useState<StudentApplication[]>(initialStudents);
+    const [students, setStudents] = useStudents();
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabKey>("all");
 
@@ -70,7 +70,7 @@ export default function StudentApplicationsPage() {
             const newCallLogs = [...s.callLogs, { date: today, result: callForm.result, note: callForm.note, employee: callForm.employee || "الموظف" }];
             const newAttempts = s.contactAttempts + 1;
             let newStage: StudentPipelineStage = s.stage === "new" ? "contacting" : s.stage;
-            let newTimeline = [...s.timeline];
+            const newTimeline = [...s.timeline];
 
             if (callForm.result === "answered") {
                 newStage = "confirmed";
@@ -120,7 +120,7 @@ export default function StudentApplicationsPage() {
                 by: paymentForm.employee || "الموظف",
             }];
 
-            let newStage: StudentPipelineStage = isFull ? "active" : "partial_payment";
+            const newStage: StudentPipelineStage = isFull ? "active" : "partial_payment";
             if (isFull) {
                 newTimeline.push({ date: today, action: "✅ تفعيل الاشتراك", by: paymentForm.employee || "الموظف" });
             }
@@ -165,16 +165,16 @@ export default function StudentApplicationsPage() {
             {/* Stats */}
             <div className="flex gap-2.5 mb-5 overflow-x-auto pb-1 scrollbar-hide">
                 {[
-                    { label: "جديد", count: countStage("new"), color: "blue" },
-                    { label: "جاري الاتصال", count: countStage("contacting"), color: "cyan" },
-                    { label: "بانتظار الدفع", count: countStage("awaiting_payment", "confirmed"), color: "orange" },
-                    { label: "دفع جزئي", count: countStage("partial_payment"), color: "amber" },
-                    { label: "لا رد", count: countStage("no_response"), color: "gray" },
-                    { label: "ملغي", count: countStage("cancelled"), color: "red" },
+                    { label: "جديد", count: countStage("new"), cls: "border-blue-200 bg-blue-50 text-blue-700" },
+                    { label: "جاري الاتصال", count: countStage("contacting"), cls: "border-cyan-200 bg-cyan-50 text-cyan-700" },
+                    { label: "بانتظار الدفع", count: countStage("awaiting_payment", "confirmed"), cls: "border-orange-200 bg-orange-50 text-orange-700" },
+                    { label: "دفع جزئي", count: countStage("partial_payment"), cls: "border-amber-200 bg-amber-50 text-amber-700" },
+                    { label: "لا رد", count: countStage("no_response"), cls: "border-gray-200 bg-gray-50 text-gray-700" },
+                    { label: "ملغي", count: countStage("cancelled"), cls: "border-red-200 bg-red-50 text-red-700" },
                 ].map((s) => (
-                    <div key={s.label} className={`shrink-0 inline-flex items-center gap-2 rounded-xl border border-${s.color}-200 bg-${s.color}-50 px-3 py-2`}>
-                        <span className={`text-base font-extrabold text-${s.color}-700`}>{s.count}</span>
-                        <span className={`text-[11px] font-medium text-${s.color}-700`}>{s.label}</span>
+                    <div key={s.label} className={`shrink-0 inline-flex items-center gap-2 rounded-xl border px-3 py-2 ${s.cls}`}>
+                        <span className="text-base font-extrabold">{s.count}</span>
+                        <span className="text-[11px] font-medium">{s.label}</span>
                     </div>
                 ))}
             </div>

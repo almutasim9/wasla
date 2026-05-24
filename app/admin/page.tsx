@@ -1,9 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import { mockApplications, mockCaptains, pipelineApplications, stageConfig, type PipelineStage, studentApplications, studentStageConfig, type StudentPipelineStage } from "@/lib/mock-data";
+import { stageConfig, type PipelineStage, studentStageConfig, type StudentPipelineStage } from "@/lib/mock-data";
+import { useCaptainApplications, useCaptains, usePipelineApplications, useStudents } from "@/lib/store";
 
 const stageOrder: PipelineStage[] = ["new", "interview_scheduled", "under_inspection", "needs_improvement", "accepted", "rejected"];
 
 export default function AdminOverview() {
+    const [mockApplications] = useCaptainApplications();
+    const [mockCaptains] = useCaptains();
+    const [pipelineApplications] = usePipelineApplications();
+    const [studentApplications] = useStudents();
     const totalApps = mockApplications.length;
     const pending = mockApplications.filter((a) => a.status === "pending").length;
     const archived = mockApplications.filter(

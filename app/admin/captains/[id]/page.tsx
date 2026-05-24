@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { mockCaptains, type Captain } from "@/lib/mock-data";
+import { useCaptains } from "@/lib/store";
 
 const typeLabels: Record<string, string> = {
     taxi: "تكسي",
@@ -14,8 +13,8 @@ export default function CaptainProfilePage() {
     const params = useParams();
     const captainId = params.id as string;
 
-    const initialCaptain = mockCaptains.find((c) => c.id === captainId);
-    const [captain, setCaptain] = useState<Captain | undefined>(initialCaptain);
+    const [captains, setCaptains] = useCaptains();
+    const captain = captains.find((c) => c.id === captainId);
 
     if (!captain) {
         return (
@@ -39,14 +38,16 @@ export default function CaptainProfilePage() {
     }
 
     const toggleStatus = () => {
-        setCaptain((prev) =>
-            prev
-                ? {
-                    ...prev,
-                    accountStatus:
-                        prev.accountStatus === "active" ? "suspended" : "active",
-                }
-                : prev
+        setCaptains((prev) =>
+            prev.map((item) =>
+                item.id === captainId
+                    ? {
+                        ...item,
+                        accountStatus:
+                            item.accountStatus === "active" ? "suspended" : "active",
+                    }
+                    : item
+            )
         );
     };
 

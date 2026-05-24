@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-    pipelineApplications,
     stageConfig,
 } from "@/lib/mock-data";
+import { usePipelineApplications } from "@/lib/store";
 
 const typeLabels: Record<string, string> = {
     taxi: "تكسي",
@@ -15,6 +15,7 @@ const typeLabels: Record<string, string> = {
 export default function PipelineDetailPage() {
     const params = useParams();
     const appId = params.id as string;
+    const [pipelineApplications] = usePipelineApplications();
     const app = pipelineApplications.find((a) => a.id === appId);
 
     if (!app) {

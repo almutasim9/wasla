@@ -46,6 +46,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         pathname.startsWith("/admin/captains") ||
         pathname.startsWith("/admin/pipeline");
     const isStudentSection = pathname.startsWith("/admin/students");
+    const isOperationsSection = pathname.startsWith("/admin/operations");
+    const isFormsSection = pathname.startsWith("/admin/forms");
     const [captainsOpen, setCaptainsOpen] = useState(isCaptainSection);
     const [studentsOpen, setStudentsOpen] = useState(isStudentSection);
 
@@ -85,6 +87,38 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                         </svg>
                     </span>
                     الرئيسية
+                </Link>
+
+                <Link
+                    href="/admin/operations"
+                    onClick={onClose}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${isOperationsSection
+                        ? "bg-primary-50 text-primary-700 shadow-sm"
+                        : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                        }`}
+                >
+                    <span className={isOperationsSection ? "text-primary-600" : "text-text-tertiary"}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 12h9.75M10.5 18h9.75M3.75 6h.008v.008H3.75V6zm0 6h.008v.008H3.75V12zm0 6h.008v.008H3.75V18z" />
+                        </svg>
+                    </span>
+                    العمليات
+                </Link>
+
+                <Link
+                    href="/admin/forms"
+                    onClick={onClose}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${isFormsSection
+                        ? "bg-primary-50 text-primary-700 shadow-sm"
+                        : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                        }`}
+                >
+                    <span className={isFormsSection ? "text-primary-600" : "text-text-tertiary"}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2.25 5H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h5.379c.597 0 1.169.237 1.591.659l3.621 3.621c.422.422.659.994.659 1.591v9.879A2.25 2.25 0 0116.25 21z" />
+                        </svg>
+                    </span>
+                    الفورمات
                 </Link>
 
                 {/* Captains group */}

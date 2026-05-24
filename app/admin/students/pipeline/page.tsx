@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
-    studentApplications,
     studentStageConfig,
-    type StudentApplication,
     type StudentPipelineStage,
 } from "@/lib/mock-data";
+import { useStudents } from "@/lib/store";
 
 /* stages in order for the main pipeline (exclude terminal states) */
 const pipelineStages: StudentPipelineStage[] = [
@@ -21,7 +19,7 @@ const pipelineStages: StudentPipelineStage[] = [
 const terminalStages: StudentPipelineStage[] = ["no_response", "cancelled"];
 
 export default function StudentPipelinePage() {
-    const [students, setStudents] = useState<StudentApplication[]>(studentApplications);
+    const [students, setStudents] = useStudents();
 
     const moveStudent = (id: string, to: StudentPipelineStage) => {
         setStudents((prev) =>

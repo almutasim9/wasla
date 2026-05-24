@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    mockApplications,
     type CaptainApplication,
     type ApplicationStatus,
 } from "@/lib/mock-data";
+import { transferCaptainApplicationToPipeline, useCaptainApplications } from "@/lib/store";
 
 type TabFilter = "all" | "pending" | "transferred" | "archived";
 
@@ -40,7 +40,7 @@ const typeLabels: Record<string, string> = {
 
 export default function ApplicationsPage() {
     const [applications, setApplications] =
-        useState<CaptainApplication[]>(mockApplications);
+        useCaptainApplications();
     const [activeTab, setActiveTab] = useState<TabFilter>("all");
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -64,7 +64,10 @@ export default function ApplicationsPage() {
     };
 
     const handleTransferToPipeline = (app: CaptainApplication) => {
-        updateStatus(app.id, "approved");
+        transferCaptainApplicationToPipeline(app);
+        setApplications((prev) =>
+            prev.map((a) => (a.id === app.id ? { ...a, status: "approved" } : a))
+        );
         setToast(`تم تحويل ${app.fullName} إلى Pipeline الكباتن`);
         setTimeout(() => setToast(null), 4000);
     };

@@ -3,11 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    studentApplications,
     studentStageConfig,
-    type StudentApplication,
-    type StudentPipelineStage,
 } from "@/lib/mock-data";
+import { useStudents } from "@/lib/store";
 
 type TabFilter = "all" | "active" | "suspended" | "pending";
 
@@ -22,7 +20,7 @@ const genderLabel = { male: "ذكر", female: "أنثى" };
 const shiftLabel = { morning: "صباحي ☀️", evening: "مسائي 🌙" };
 
 export default function StudentsPage() {
-    const [students] = useState<StudentApplication[]>(studentApplications);
+    const [students] = useStudents();
     const [activeTab, setActiveTab] = useState<TabFilter>("all");
     const [searchQuery, setSearchQuery] = useState("");
 
