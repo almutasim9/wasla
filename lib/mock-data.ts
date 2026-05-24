@@ -511,6 +511,22 @@ export const mockCaptains: Captain[] = [
         createdAt: "2026-02-24",
     },
     {
+        id: "c4",
+        fullName: "سالم يونس الحيالي",
+        phone: "07709990011",
+        email: "salem.hayali@email.com",
+        carBrand: "هيونداي",
+        carModel: "إلنترا",
+        modelYear: "2023",
+        plateNumber: "88-44556",
+        city: "الموصل",
+        areaName: "المجموعة",
+        registrationTypes: ["subscription"],
+        accountStatus: "active",
+        approvedAt: "2026-03-01",
+        createdAt: "2026-02-28",
+    },
+    {
         id: "c3",
         fullName: "محمد عادل السعدي",
         phone: "07701112233",
@@ -884,6 +900,83 @@ export const studentApplications: StudentApplication[] = [
         ],
         createdAt: "2026-02-26",
     },
+    {
+        id: "s11",
+        fullName: "رغد باسم الجبوري",
+        gender: "female",
+        phone: "07809998877",
+        area: "الحدباء",
+        landmark: "قرب جامع الحدباء",
+        university: "جامعة الموصل",
+        universityLocation: "الساحل الأيسر — المجموعة الثقافية",
+        shift: "morning",
+        stage: "active",
+        status: "active",
+        contactAttempts: 1,
+        callLogs: [
+            { date: "2026-03-03", result: "answered", note: "تم التأكيد وتفعيل الاشتراك قبل الدفع", employee: "العمليات" },
+        ],
+        payments: [],
+        timeline: [
+            { date: "2026-03-03", action: "تقديم طلب تسجيل", by: "النظام" },
+            { date: "2026-03-03", action: "📞 اتصال — تأكيد البيانات", by: "العمليات" },
+            { date: "2026-03-04", action: "✅ تفعيل الاشتراك — بانتظار الدفع", by: "العمليات" },
+        ],
+        createdAt: "2026-03-03",
+    },
+    {
+        id: "s12",
+        fullName: "مصعب نزار العبادي",
+        gender: "male",
+        phone: "07807770022",
+        area: "الكرامة",
+        landmark: "قرب سوق الكرامة الشعبي",
+        university: "جامعة نينوى",
+        universityLocation: "الساحل الأيمن — حي الحرية",
+        shift: "evening",
+        stage: "active",
+        status: "active",
+        contactAttempts: 1,
+        callLogs: [
+            { date: "2026-03-02", result: "answered", note: "تم التأكيد", employee: "العمليات" },
+        ],
+        payments: [
+            { date: "2026-03-03", amountPaid: 20000, totalAmount: 50000, method: "cash", status: "partial", note: "دفعة أولى", employee: "العمليات" },
+        ],
+        timeline: [
+            { date: "2026-03-02", action: "تقديم طلب تسجيل", by: "النظام" },
+            { date: "2026-03-02", action: "📞 اتصال — تأكيد البيانات", by: "العمليات" },
+            { date: "2026-03-03", action: "💰 دفع جزئي — 20,000 د.ع", by: "العمليات" },
+            { date: "2026-03-03", action: "✅ تفعيل الاشتراك", by: "العمليات" },
+        ],
+        createdAt: "2026-03-02",
+    },
+    {
+        id: "s13",
+        fullName: "مريم سعد الدليمي",
+        gender: "female",
+        phone: "07804445566",
+        area: "الوحدة",
+        landmark: "قرب مدرسة الوحدة",
+        university: "الجامعة التقنية الشمالية",
+        universityLocation: "الساحل الأيسر — المجموعة",
+        shift: "morning",
+        stage: "active",
+        status: "active",
+        contactAttempts: 1,
+        callLogs: [
+            { date: "2026-02-10", result: "answered", note: "تم التأكيد للشهر التجريبي", employee: "العمليات" },
+        ],
+        payments: [
+            { date: "2026-02-11", amountPaid: 50000, totalAmount: 50000, method: "e_wallet", status: "full", transactionId: "ZC-20260211-118", employee: "العمليات" },
+        ],
+        timeline: [
+            { date: "2026-02-10", action: "تقديم طلب تسجيل", by: "النظام" },
+            { date: "2026-02-11", action: "📱 دفع كامل — 50,000 د.ع", by: "العمليات" },
+            { date: "2026-03-01", action: "إنهاء الاشتراك بناءً على طلب الطالب", by: "العمليات" },
+        ],
+        createdAt: "2026-02-10",
+    },
 ];
 
 // ── Student pipeline stage config ──
@@ -948,5 +1041,3 @@ export const studentStageConfig: Record<
         borderColor: "border-red-200",
     },
 };
-
-

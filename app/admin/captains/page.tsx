@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    mockCaptains,
-    type Captain,
     type AccountStatus,
 } from "@/lib/mock-data";
+import { useCaptains } from "@/lib/store";
 
 const typeLabels: Record<string, string> = {
     taxi: "تكسي",
@@ -25,7 +24,7 @@ const statusConfig: Record<AccountStatus, { text: string; cls: string }> = {
 };
 
 export default function CaptainsPage() {
-    const [captains, setCaptains] = useState<Captain[]>(mockCaptains);
+    const [captains, setCaptains] = useCaptains();
     const [searchQuery, setSearchQuery] = useState("");
 
     const filtered = captains.filter(

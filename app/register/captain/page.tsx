@@ -2,30 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-const carBrands = [
-    "تويوتا",
-    "هيونداي",
-    "كيا",
-    "نيسان",
-    "شيفروليه",
-    "فورد",
-    "هوندا",
-    "ميتسوبيشي",
-    "سوزوكي",
-    "مرسيدس",
-    "بي إم دبليو",
-    "فولكس واجن",
-    "رينو",
-    "بيجو",
-    "سايبا",
-    "إيران خودرو",
-    "جيلي",
-    "شيري",
-    "إم جي",
-];
+import { addCaptainRegistration, useFormSettings } from "@/lib/store";
+import type { RegistrationType } from "@/lib/mock-data";
 
 export default function CaptainApplyPage() {
+    const [settings] = useFormSettings();
+    const formSettings = settings.captain;
     const [formData, setFormData] = useState({
         fullName: "",
         phone: "",
@@ -36,7 +18,7 @@ export default function CaptainApplyPage() {
         plateNumber: "",
         city: "mosul",
         areaName: "",
-        registrationTypes: [] as string[],
+        registrationTypes: [] as RegistrationType[],
     });
 
     const [submitted, setSubmitted] = useState(false);
@@ -47,7 +29,8 @@ export default function CaptainApplyPage() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleTypeToggle = (type: string) => {
+    const handleTypeToggle = (type: RegistrationType) => {
+        if (!formSettings.enabledRegistrationTypes.includes(type)) return;
         setFormData((prev) => ({
             ...prev,
             registrationTypes: prev.registrationTypes.includes(type)
@@ -58,7 +41,6 @@ export default function CaptainApplyPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Send to Supabase / API
         const payload = {
             ...formData,
             carBrand:
@@ -66,7 +48,7 @@ export default function CaptainApplyPage() {
                     ? formData.customCarBrand
                     : formData.carBrand,
         };
-        console.log("Captain application:", payload);
+        addCaptainRegistration(payload);
         setSubmitted(true);
     };
 
@@ -135,6 +117,38 @@ export default function CaptainApplyPage() {
         );
     }
 
+    if (!formSettings.enabled) {
+        return (
+            <div className="min-h-screen bg-surface-alt">
+                <header className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border">
+                    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                        <div className="flex h-16 items-center justify-between">
+                            <Link href="/" className="flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white font-bold text-lg">
+                                    و
+                                </div>
+                                <span className="text-xl font-bold text-text-primary">وصلة</span>
+                            </Link>
+                        </div>
+                    </div>
+                </header>
+                <main className="pt-28 pb-16 px-4">
+                    <div className="mx-auto max-w-md rounded-2xl bg-white border border-border p-8 text-center shadow-sm">
+                        <h1 className="text-xl font-extrabold text-text-primary">
+                            تسجيل الكباتن مغلق حالياً
+                        </h1>
+                        <p className="mt-2 text-sm text-text-secondary">
+                            يرجى المحاولة لاحقاً أو التواصل مع إدارة وصلة.
+                        </p>
+                        <Link href="/" className="mt-6 inline-flex rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white">
+                            الرجوع للرئيسية
+                        </Link>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-surface-alt">
             {/* Top bar */}
@@ -179,11 +193,17 @@ export default function CaptainApplyPage() {
                             </svg>
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary">
-                            طلب انضمام ككابتن
+                            {formSettings.title}
                         </h1>
                         <p className="mt-2 text-text-secondary text-sm sm:text-base">
-                            عبّي بياناتك وراح نتواصل وياك بأقرب وقت
+                            {formSettings.description}
                         </p>
+                        <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-3 text-right">
+                            <span className="text-amber-500 text-sm mt-0.5">💡</span>
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                                {formSettings.note}
+                            </p>
+                        </div>
                     </div>
 
                     {/* Form card */}
@@ -269,12 +289,14 @@ export default function CaptainApplyPage() {
                                     <option value="" disabled>
                                         اختر نوع السيارة
                                     </option>
-                                    {carBrands.map((brand) => (
+                                    {formSettings.carBrands.map((brand) => (
                                         <option key={brand} value={brand}>
                                             {brand}
                                         </option>
                                     ))}
-                                    <option value="other">أخرى</option>
+                                    {formSettings.allowOtherCarBrand && (
+                                        <option value="other">أخرى</option>
+                                    )}
                                 </select>
                             </div>
 
@@ -429,88 +451,92 @@ export default function CaptainApplyPage() {
                                 </label>
                                 <div className="flex gap-3">
                                     {/* Taxi chip */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleTypeToggle("taxi")}
-                                        className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3.5 text-sm font-bold transition-all duration-300 ${formData.registrationTypes.includes("taxi")
+                                    {formSettings.enabledRegistrationTypes.includes("taxi") && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTypeToggle("taxi")}
+                                            className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3.5 text-sm font-bold transition-all duration-300 ${formData.registrationTypes.includes("taxi")
                                                 ? "border-primary-500 bg-primary-50 text-primary-700 shadow-sm"
                                                 : "border-border bg-white text-text-secondary hover:border-primary-300 hover:bg-primary-50/50"
                                             }`}
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={1.5}
                                         >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
-                                            />
-                                        </svg>
-                                        تكسي
-                                        {formData.registrationTypes.includes("taxi") && (
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
-                                                className="h-4 w-4"
+                                                className="h-5 w-5"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
-                                                strokeWidth={3}
+                                                strokeWidth={1.5}
                                             >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
-                                                    d="M5 13l4 4L19 7"
+                                                    d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
                                                 />
                                             </svg>
-                                        )}
-                                    </button>
+                                            تكسي
+                                            {formData.registrationTypes.includes("taxi") && (
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    className="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={3}
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M5 13l4 4L19 7"
+                                                    />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    )}
 
                                     {/* Subscription chip */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleTypeToggle("subscription")}
-                                        className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3.5 text-sm font-bold transition-all duration-300 ${formData.registrationTypes.includes("subscription")
+                                    {formSettings.enabledRegistrationTypes.includes("subscription") && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTypeToggle("subscription")}
+                                            className={`flex-1 flex items-center justify-center gap-2 rounded-2xl border-2 px-4 py-3.5 text-sm font-bold transition-all duration-300 ${formData.registrationTypes.includes("subscription")
                                                 ? "border-secondary-500 bg-secondary-50 text-secondary-700 shadow-sm"
                                                 : "border-border bg-white text-text-secondary hover:border-secondary-300 hover:bg-secondary-50/50"
                                             }`}
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={1.5}
                                         >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3"
-                                            />
-                                        </svg>
-                                        اشتراك
-                                        {formData.registrationTypes.includes("subscription") && (
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
-                                                className="h-4 w-4"
+                                                className="h-5 w-5"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
-                                                strokeWidth={3}
+                                                strokeWidth={1.5}
                                             >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
-                                                    d="M5 13l4 4L19 7"
+                                                    d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3"
                                                 />
                                             </svg>
-                                        )}
-                                    </button>
+                                            اشتراك
+                                            {formData.registrationTypes.includes("subscription") && (
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    className="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    strokeWidth={3}
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M5 13l4 4L19 7"
+                                                    />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

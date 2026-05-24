@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-    pipelineApplications,
     stageConfig,
     type PipelineApplication,
     type PipelineStage,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/mock-data";
 import ScheduleModal from "@/components/admin/ScheduleModal";
 import InspectionForm from "@/components/admin/InspectionForm";
+import { createCaptainFromPipeline, usePipelineApplications } from "@/lib/store";
 
 const stageOrder: PipelineStage[] = [
     "new",
@@ -22,7 +22,7 @@ const stageOrder: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-    const [apps, setApps] = useState<PipelineApplication[]>(pipelineApplications);
+    const [apps, setApps] = usePipelineApplications();
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
 
@@ -44,7 +44,9 @@ export default function PipelinePage() {
                     action: `نقل إلى: ${stageConfig[newStage].label}`,
                     by: "المدير",
                 };
-                return { ...a, stage: newStage, timeline: [...a.timeline, event] };
+                const updated = { ...a, stage: newStage, timeline: [...a.timeline, event] };
+                if (newStage === "accepted") createCaptainFromPipeline(updated);
+                return updated;
             })
         );
     };
@@ -129,7 +131,7 @@ export default function PipelinePage() {
         setApps((prev) =>
             prev.map((a) => {
                 if (a.id !== inspectionTarget.id) return a;
-                return {
+                const updated = {
                     ...a,
                     stage: nextStage,
                     inspection: report,
@@ -142,6 +144,8 @@ export default function PipelinePage() {
                         },
                     ],
                 };
+                if (nextStage === "accepted") createCaptainFromPipeline(updated);
+                return updated;
             })
         );
         setInspectionTarget(null);
