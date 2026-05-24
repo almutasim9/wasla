@@ -90,6 +90,7 @@ export interface Captain {
     accountStatus: AccountStatus;
     approvedAt: string;
     createdAt: string;
+    passcode?: string;
 }
 
 // ── Pipeline mock data ──
@@ -645,6 +646,7 @@ export interface StudentApplication {
     payments: PaymentRecord[];
     timeline: TimelineEvent[];
     createdAt: string;
+    passcode?: string;
 }
 
 // ── Student mock data ──

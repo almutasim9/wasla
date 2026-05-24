@@ -48,10 +48,57 @@ function getStepIndex(stage: StudentPipelineStage): number {
 
 export default function StudentProfilePage() {
     const params = useParams();
-    const [studentApplications] = useStudents();
+    const [studentApplications, setStudents] = useStudents();
     const student = studentApplications.find(
         (s) => s.id === params.id
     ) as StudentApplication | undefined;
+
+    const handleActivate = () => {
+        if (!student) return;
+        setStudents((prev) =>
+            prev.map((s) => {
+                if (s.id === student.id) {
+                    return {
+                        ...s,
+                        stage: "active" as const,
+                        status: "active" as const,
+                        timeline: [
+                            ...s.timeline,
+                            {
+                                date: new Date().toISOString().split("T")[0],
+                                action: "تفعيل الطالب واعتماده رسمياً (إنشاء حساب)",
+                                by: "المدير",
+                            },
+                        ],
+                    };
+                }
+                return s;
+            })
+        );
+    };
+
+    const handleSuspend = () => {
+        if (!student) return;
+        setStudents((prev) =>
+            prev.map((s) => {
+                if (s.id === student.id) {
+                    return {
+                        ...s,
+                        status: "suspended" as const,
+                        timeline: [
+                            ...s.timeline,
+                            {
+                                date: new Date().toISOString().split("T")[0],
+                                action: "🚫 تجميد الحساب يدوياً",
+                                by: "المدير",
+                            },
+                        ],
+                    };
+                }
+                return s;
+            })
+        );
+    };
 
     if (!student) {
         return (
@@ -116,6 +163,25 @@ export default function StudentProfilePage() {
                         <p className="text-sm text-text-tertiary mt-1" dir="ltr">
                             {student.phone} · {genderLabel[student.gender]} · {shiftLabel[student.shift]}
                         </p>
+                    </div>
+
+                    {/* Quick Action Button */}
+                    <div className="mr-auto flex gap-2">
+                        {student.status !== "active" ? (
+                            <button
+                                onClick={handleActivate}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-green-600/10 hover:bg-green-700 transition-all hover:-translate-y-0.5"
+                            >
+                                ✅ تفعيل واعتماد الطالب (إنشاء حساب)
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleSuspend}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-bold text-red-600 shadow-sm hover:bg-red-50 transition-all hover:-translate-y-0.5"
+                            >
+                                🚫 تجميد الحساب
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
