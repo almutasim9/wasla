@@ -5,13 +5,14 @@ import {
     useAdmins,
     useCaptains,
     useStudents,
+    useStudentPipelineApplications,
     useCurrentAdmin,
     usePipelineApplications,
     addAdminRegistration,
-    addStudentRegistration,
     addCaptainRegistration,
     toggleCaptainStatus,
     toggleStudentStatus,
+    createStudentAccount,
     createCaptainFromPipeline,
     generateRandomPasscode,
 } from "@/lib/store";
@@ -24,6 +25,7 @@ export default function AccountsPage() {
     const [admins] = useAdmins();
     const [captains, setCaptains] = useCaptains();
     const [students, setStudents] = useStudents();
+    const [studentPipelineApplications, setStudentPipelineApplications] = useStudentPipelineApplications();
     const [pipelineApplications, setPipelineApplications] = usePipelineApplications();
 
     // Filters & Search
@@ -108,15 +110,20 @@ export default function AccountsPage() {
     // Submitting Forms & Activation
 
     // 1. ADD ADMIN
-    const handleAddAdmin = (e: React.FormEvent) => {
+    const handleAddAdmin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!adminName || !adminEmail || !adminPassword) return;
 
-        addAdminRegistration({
-            fullName: adminName,
-            email: adminEmail,
-            password: adminPassword,
-        });
+        try {
+            await addAdminRegistration({
+                fullName: adminName,
+                email: adminEmail,
+                password: adminPassword,
+            });
+        } catch {
+            showToast("تعذر حفظ حساب المدير في Supabase");
+            return;
+        }
 
         const credentials = {
             name: adminName,
@@ -134,17 +141,16 @@ export default function AccountsPage() {
     };
 
     // 2. ACTIVATE STUDENT (FROM PIPELINE OR MANUAL)
-    const handleActivateStudent = (e: React.FormEvent) => {
+    const handleActivateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (studentTab === "pipeline") {
-            const lead = students.find((s) => s.id === selectedStudentLeadId);
+            const lead = studentPipelineApplications.find((s) => s.id === selectedStudentLeadId);
             if (!lead) return;
 
             const code = generateRandomPasscode();
 
-            // Update student stage and status in store
-            setStudents((prev) =>
+            setStudentPipelineApplications((prev) =>
                 prev.map((s) => {
                     if (s.id === lead.id) {
                         return {
@@ -165,6 +171,17 @@ export default function AccountsPage() {
                     return s;
                 })
             );
+            let account;
+            try {
+                account = await createStudentAccount(lead, code);
+            } catch {
+                showToast("تعذر حفظ حساب الطالب في Supabase");
+                return;
+            }
+            setStudents((current) => {
+                const exists = current.some((s) => s.phone === account.phone);
+                return exists ? current : [account, ...current];
+            });
 
             setCreatedAccount({
                 name: lead.fullName,
@@ -183,31 +200,40 @@ export default function AccountsPage() {
 
             const code = generateRandomPasscode();
 
-            const newStudent = addStudentRegistration({
-                fullName: studentName,
-                phone: studentPhone,
-                gender: studentGender,
-                area: studentArea,
-                landmark: studentLandmark,
-                university: studentUniversity,
-                universityLocation: studentUniLocation || "الحرم الرئيسي",
-                shift: studentShift,
+            let newStudent;
+            try {
+                newStudent = await createStudentAccount({
+                    id: `manual-${Date.now().toString(36)}`,
+                    fullName: studentName,
+                    phone: studentPhone,
+                    gender: studentGender,
+                    area: studentArea,
+                    landmark: studentLandmark,
+                    university: studentUniversity,
+                    universityLocation: studentUniLocation || "الحرم الرئيسي",
+                    shift: studentShift,
+                    stage: "active",
+                    status: "active",
+                    contactAttempts: 0,
+                    callLogs: [],
+                    payments: [],
+                    timeline: [
+                        {
+                            date: new Date().toISOString().split("T")[0],
+                            action: "تسجيل يدوي وتفعيل فوري",
+                            by: "المدير",
+                        },
+                    ],
+                    createdAt: new Date().toISOString().split("T")[0],
+                }, code);
+            } catch {
+                showToast("تعذر حفظ حساب الطالب في Supabase");
+                return;
+            }
+            setStudents((current) => {
+                const exists = current.some((s) => s.phone === newStudent.phone);
+                return exists ? current : [newStudent, ...current];
             });
-
-            // Make it active immediately
-            setStudents((prev) =>
-                prev.map((s) => {
-                    if (s.id === newStudent.id) {
-                        return {
-                            ...s,
-                            stage: "active" as const,
-                            status: "active" as const,
-                            passcode: code,
-                        };
-                    }
-                    return s;
-                })
-            );
 
             setCreatedAccount({
                 name: studentName,
@@ -228,7 +254,7 @@ export default function AccountsPage() {
     };
 
     // 3. ACTIVATE CAPTAIN (FROM PIPELINE OR MANUAL)
-    const handleActivateCaptain = (e: React.FormEvent) => {
+    const handleActivateCaptain = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (captainTab === "pipeline") {
@@ -259,32 +285,19 @@ export default function AccountsPage() {
             );
 
             // Create account
-            createCaptainFromPipeline(lead, code);
+            let captainAccount;
+            try {
+                captainAccount = await createCaptainFromPipeline(lead, code);
+            } catch {
+                showToast("تعذر حفظ حساب الكابتن في Supabase");
+                return;
+            }
 
             // Force captains hook sync
             setCaptains((current) => {
                 const exists = current.some((c) => c.phone === lead.phone);
                 if (exists) return current;
-                return [
-                    {
-                        id: `c-${lead.id}`,
-                        fullName: lead.fullName,
-                        phone: lead.phone,
-                        email: `${lead.phone}@wasla.local`,
-                        carBrand: lead.carBrand,
-                        carModel: lead.carModel,
-                        modelYear: lead.modelYear,
-                        plateNumber: lead.plateNumber,
-                        city: lead.city,
-                        areaName: lead.areaName,
-                        registrationTypes: lead.registrationTypes,
-                        accountStatus: "active" as const,
-                        approvedAt: new Date().toISOString().split("T")[0],
-                        createdAt: lead.createdAt,
-                        passcode: code,
-                    },
-                    ...current,
-                ];
+                return [captainAccount, ...current];
             });
 
             setCreatedAccount({
@@ -305,17 +318,23 @@ export default function AccountsPage() {
 
             const code = generateRandomPasscode();
 
-            const app = addCaptainRegistration({
-                fullName: captainName,
-                phone: captainPhone,
-                carBrand: captainCarBrand,
-                carModel: captainCarModel,
-                modelYear: captainModelYear,
-                plateNumber: captainPlate,
-                city: captainCity,
-                areaName: captainArea,
-                registrationTypes: captainRegTypes,
-            });
+            let app;
+            try {
+                app = await addCaptainRegistration({
+                    fullName: captainName,
+                    phone: captainPhone,
+                    carBrand: captainCarBrand,
+                    carModel: captainCarModel,
+                    modelYear: captainModelYear,
+                    plateNumber: captainPlate,
+                    city: captainCity,
+                    areaName: captainArea,
+                    registrationTypes: captainRegTypes,
+                });
+            } catch {
+                showToast("تعذر حفظ طلب الكابتن في Supabase");
+                return;
+            }
 
             const pipelineItem: PipelineApplication = {
                 ...app,
@@ -327,32 +346,19 @@ export default function AccountsPage() {
             setPipelineApplications((prev) => [pipelineItem, ...prev]);
 
             // Create account
-            createCaptainFromPipeline(pipelineItem, code);
+            let captainAccount;
+            try {
+                captainAccount = await createCaptainFromPipeline(pipelineItem, code);
+            } catch {
+                showToast("تعذر حفظ حساب الكابتن في Supabase");
+                return;
+            }
 
             // Force captains hook sync
             setCaptains((current) => {
                 const exists = current.some((c) => c.phone === app.phone);
                 if (exists) return current;
-                return [
-                    {
-                        id: `c-p-${app.id}`,
-                        fullName: app.fullName,
-                        phone: app.phone,
-                        email: `${app.phone}@wasla.local`,
-                        carBrand: app.carBrand,
-                        carModel: app.carModel,
-                        modelYear: app.modelYear,
-                        plateNumber: app.plateNumber,
-                        city: app.city,
-                        areaName: app.areaName,
-                        registrationTypes: app.registrationTypes,
-                        accountStatus: "active" as const,
-                        approvedAt: new Date().toISOString().split("T")[0],
-                        createdAt: app.createdAt,
-                        passcode: code,
-                    },
-                    ...current,
-                ];
+                return [captainAccount, ...current];
             });
 
             setCreatedAccount({
@@ -436,9 +442,10 @@ export default function AccountsPage() {
 
     // Filter leads available for account creation
     const activeCaptainPhones = new Set(captains.map((c) => c.phone));
-    const availableCaptainLeads = pipelineApplications.filter((app) => !activeCaptainPhones.has(app.phone));
+    const availableCaptainLeads = pipelineApplications.filter((app) => app.stage === "accepted" && !activeCaptainPhones.has(app.phone));
 
-    const availableStudentLeads = students.filter((s) => s.status === "pending" || s.stage !== "active");
+    const activeStudentPhones = new Set(students.map((s) => s.phone));
+    const availableStudentLeads = studentPipelineApplications.filter((s) => s.stage === "active" && !activeStudentPhones.has(s.phone));
 
     const filteredStudentLeads = availableStudentLeads.filter((s) => {
         if (!studentSearchQuery) return true;
@@ -878,7 +885,7 @@ export default function AccountsPage() {
                                     {/* Preview lead data */}
                                     {selectedStudentLeadId && (
                                         (() => {
-                                            const lead = students.find((s) => s.id === selectedStudentLeadId);
+                                            const lead = studentPipelineApplications.find((s) => s.id === selectedStudentLeadId);
                                             if (!lead) return null;
                                             return (
                                                 <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-2">

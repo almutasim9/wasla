@@ -10,7 +10,7 @@ import {
 } from "@/lib/mock-data";
 import ScheduleModal from "@/components/admin/ScheduleModal";
 import InspectionForm from "@/components/admin/InspectionForm";
-import { createCaptainFromPipeline, usePipelineApplications } from "@/lib/store";
+import { usePipelineApplications } from "@/lib/store";
 
 const stageOrder: PipelineStage[] = [
     "new",
@@ -31,23 +31,33 @@ export default function PipelinePage() {
     const [inspectionTarget, setInspectionTarget] = useState<PipelineApplication | null>(null);
     const [rejectTarget, setRejectTarget] = useState<PipelineApplication | null>(null);
     const [rejectReason, setRejectReason] = useState("");
+    const [toast, setToast] = useState<{ tone: "success" | "error"; message: string } | null>(null);
 
     const getStageApps = (stage: PipelineStage) =>
         apps.filter((a) => a.stage === stage);
 
+    const showToast = (tone: "success" | "error", message: string) => {
+        setToast({ tone, message });
+        setTimeout(() => setToast(null), 5000);
+    };
+
     const moveToStage = (id: string, newStage: PipelineStage) => {
+        const app = apps.find((item) => item.id === id);
+        if (!app) return;
+
+        const event = {
+            date: new Date().toISOString().split("T")[0],
+            action: `نقل إلى: ${stageConfig[newStage].label}`,
+            by: "المدير",
+        };
+        const updated = { ...app, stage: newStage, timeline: [...app.timeline, event] };
+
+        if (newStage === "accepted") {
+            showToast("success", `تم قبول ${updated.fullName}. صار جاهز لإنشاء الحساب من إدارة الحسابات`);
+        }
+
         setApps((prev) =>
-            prev.map((a) => {
-                if (a.id !== id) return a;
-                const event = {
-                    date: new Date().toISOString().split("T")[0],
-                    action: `نقل إلى: ${stageConfig[newStage].label}`,
-                    by: "المدير",
-                };
-                const updated = { ...a, stage: newStage, timeline: [...a.timeline, event] };
-                if (newStage === "accepted") createCaptainFromPipeline(updated);
-                return updated;
-            })
+            prev.map((a) => (a.id === id ? updated : a))
         );
     };
 
@@ -128,26 +138,23 @@ export default function PipelinePage() {
                     ? "بحاجة تحسين 🔧"
                     : "راسب ❌";
 
-        setApps((prev) =>
-            prev.map((a) => {
-                if (a.id !== inspectionTarget.id) return a;
-                const updated = {
-                    ...a,
-                    stage: nextStage,
-                    inspection: report,
-                    timeline: [
-                        ...a.timeline,
-                        {
-                            date: new Date().toISOString().split("T")[0],
-                            action: `تقرير التقييم — ${resultLabel}`,
-                            by: "المدير",
-                        },
-                    ],
-                };
-                if (nextStage === "accepted") createCaptainFromPipeline(updated);
-                return updated;
-            })
-        );
+        const updated = {
+            ...inspectionTarget,
+            stage: nextStage,
+            inspection: report,
+            timeline: [
+                ...inspectionTarget.timeline,
+                {
+                    date: new Date().toISOString().split("T")[0],
+                    action: `تقرير التقييم — ${resultLabel}`,
+                    by: "المدير",
+                },
+            ],
+        };
+        if (nextStage === "accepted") {
+            showToast("success", `تم قبول ${updated.fullName}. صار جاهز لإنشاء الحساب من إدارة الحسابات`);
+        }
+        setApps((prev) => prev.map((a) => (a.id === inspectionTarget.id ? updated : a)));
         setInspectionTarget(null);
     };
 
@@ -195,6 +202,15 @@ export default function PipelinePage() {
                     تتبع رحلة الكابتن من التسجيل إلى القبول
                 </p>
             </div>
+
+            {toast && (
+                <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-bold ${toast.tone === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-600"
+                    }`}>
+                    {toast.message}
+                </div>
+            )}
 
             {/* Stats bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

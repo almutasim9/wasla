@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { stageConfig, type PipelineStage, studentStageConfig, type StudentPipelineStage } from "@/lib/mock-data";
-import { useCaptainApplications, useCaptains, usePipelineApplications, useStudents } from "@/lib/store";
+import {
+    useCaptainApplications,
+    useCaptains,
+    usePipelineApplications,
+    useStudentPipelineApplications,
+    useStudents,
+} from "@/lib/store";
 
 const stageOrder: PipelineStage[] = ["new", "interview_scheduled", "under_inspection", "needs_improvement", "accepted", "rejected"];
 
@@ -10,7 +16,8 @@ export default function AdminOverview() {
     const [mockApplications] = useCaptainApplications();
     const [mockCaptains] = useCaptains();
     const [pipelineApplications] = usePipelineApplications();
-    const [studentApplications] = useStudents();
+    const [studentApplications] = useStudentPipelineApplications();
+    const [students] = useStudents();
     const totalApps = mockApplications.length;
     const pending = mockApplications.filter((a) => a.status === "pending").length;
     const archived = mockApplications.filter(
@@ -219,9 +226,9 @@ export default function AdminOverview() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(["new", "contacting", "awaiting_payment", "active"] as StudentPipelineStage[]).map((stage) => {
                         const config = studentStageConfig[stage];
-                        const count = studentApplications.filter(
-                            (s) => s.stage === stage
-                        ).length;
+                        const count = stage === "active"
+                            ? students.filter((s) => s.status === "active").length
+                            : studentApplications.filter((s) => s.stage === stage).length;
                         return (
                             <div
                                 key={stage}

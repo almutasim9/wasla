@@ -5,7 +5,7 @@ import {
     studentStageConfig,
     type StudentPipelineStage,
 } from "@/lib/mock-data";
-import { useStudents } from "@/lib/store";
+import { useStudentPipelineApplications } from "@/lib/store";
 
 /* stages in order for the main pipeline (exclude terminal states) */
 const pipelineStages: StudentPipelineStage[] = [
@@ -19,7 +19,7 @@ const pipelineStages: StudentPipelineStage[] = [
 const terminalStages: StudentPipelineStage[] = ["no_response", "cancelled"];
 
 export default function StudentPipelinePage() {
-    const [students, setStudents] = useStudents();
+    const [students, setStudents] = useStudentPipelineApplications();
 
     const moveStudent = (id: string, to: StudentPipelineStage) => {
         setStudents((prev) =>

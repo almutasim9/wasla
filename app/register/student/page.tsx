@@ -21,6 +21,8 @@ export default function StudentRegisterPage() {
     });
 
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState("");
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -28,20 +30,32 @@ export default function StudentRegisterPage() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.gender || !formData.shift) return;
+        setIsSubmitting(true);
+        setSubmitError("");
         const payload = {
-            ...formData,
+            fullName: formData.fullName,
             gender: formData.gender as StudentGender,
+            phone: formData.phone,
+            area: formData.area,
+            landmark: formData.landmark,
             shift: formData.shift as StudentShift,
             university:
                 formData.university === "other"
                     ? formData.customUniversity
                     : formData.university,
+            universityLocation: formData.universityLocation,
         };
-        addStudentRegistration(payload);
-        setSubmitted(true);
+        try {
+            await addStudentRegistration(payload);
+            setSubmitted(true);
+        } catch {
+            setSubmitError("تعذر حفظ طلبك في قاعدة البيانات. يرجى المحاولة لاحقاً.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -203,6 +217,11 @@ export default function StudentRegisterPage() {
                     {/* Form card */}
                     <form onSubmit={handleSubmit}>
                         <div className="rounded-3xl bg-white border border-border shadow-sm p-6 sm:p-8 space-y-5">
+                            {submitError && (
+                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                                    {submitError}
+                                </div>
+                            )}
                             {/* ── Section 1: Personal Info ── */}
                             <div className="pb-4 border-b border-border">
                                 <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
@@ -474,10 +493,10 @@ export default function StudentRegisterPage() {
                             {/* Submit */}
                             <button
                                 type="submit"
-                                disabled={!formData.gender || !formData.shift}
+                                disabled={isSubmitting || !formData.gender || !formData.shift}
                                 className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-600 px-6 py-4 text-base font-bold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-lg"
                             >
-                                تسجيل الاشتراك
+                                {isSubmitting ? "جاري الحفظ..." : "تسجيل الاشتراك"}
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     className="h-5 w-5 rotate-180"

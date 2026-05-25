@@ -7,7 +7,10 @@ import {
     type StudentApplication,
     type StudentPipelineStage,
 } from "@/lib/mock-data";
-import { useStudents } from "@/lib/store";
+import {
+    useStudentPipelineApplications,
+    useStudents,
+} from "@/lib/store";
 
 const genderLabel = { male: "ذكر", female: "أنثى" };
 const shiftLabel = { morning: "صباحي ☀️", evening: "مسائي 🌙" };
@@ -48,14 +51,19 @@ function getStepIndex(stage: StudentPipelineStage): number {
 
 export default function StudentProfilePage() {
     const params = useParams();
-    const [studentApplications, setStudents] = useStudents();
-    const student = studentApplications.find(
-        (s) => s.id === params.id
-    ) as StudentApplication | undefined;
+    const studentId = String(params.id);
+    const [studentPipelineApplications, setStudentPipelineApplications] = useStudentPipelineApplications();
+    const [students, setStudents] = useStudents();
+    const pipelineStudent = studentPipelineApplications.find((s) => s.id === studentId);
+    const accountStudent = students.find(
+        (s) => s.id === studentId || (pipelineStudent && s.phone === pipelineStudent.phone)
+    );
+    const student = (accountStudent ?? pipelineStudent) as StudentApplication | undefined;
+    const isAccount = Boolean(accountStudent);
 
-    const handleActivate = () => {
+    const handleMarkReady = () => {
         if (!student) return;
-        setStudents((prev) =>
+        setStudentPipelineApplications((prev) =>
             prev.map((s) => {
                 if (s.id === student.id) {
                     return {
@@ -66,7 +74,7 @@ export default function StudentProfilePage() {
                             ...s.timeline,
                             {
                                 date: new Date().toISOString().split("T")[0],
-                                action: "تفعيل الطالب واعتماده رسمياً (إنشاء حساب)",
+                                action: "اعتماد الطالب وتجهيزه لإنشاء الحساب",
                                 by: "المدير",
                             },
                         ],
@@ -108,7 +116,7 @@ export default function StudentProfilePage() {
                     <h2 className="text-lg font-bold text-text-primary mb-1">الطالب غير موجود</h2>
                     <p className="text-sm text-text-secondary mb-4">لم يتم العثور على الطالب المطلوب</p>
                     <Link
-                        href="/admin/students"
+                        href="/admin/students/pipeline"
                         className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-700 transition-all"
                     >
                         ← العودة لقائمة الطلاب
@@ -129,13 +137,13 @@ export default function StudentProfilePage() {
         <div className="max-w-4xl mx-auto">
             {/* Back button */}
             <Link
-                href="/admin/students"
+                href={isAccount ? "/admin/students" : "/admin/students/pipeline"}
                 className="inline-flex items-center gap-1.5 text-sm text-text-tertiary hover:text-text-primary transition-colors mb-4"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                العودة لقائمة الطلاب
+                {isAccount ? "العودة لقائمة الطلاب" : "العودة لـ Pipeline الطلاب"}
             </Link>
 
             {/* Header card */}
@@ -167,20 +175,27 @@ export default function StudentProfilePage() {
 
                     {/* Quick Action Button */}
                     <div className="mr-auto flex gap-2">
-                        {student.status !== "active" ? (
+                        {!isAccount && student.stage !== "active" ? (
                             <button
-                                onClick={handleActivate}
+                                onClick={handleMarkReady}
                                 className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-green-600/10 hover:bg-green-700 transition-all hover:-translate-y-0.5"
                             >
-                                ✅ تفعيل واعتماد الطالب (إنشاء حساب)
+                                ✅ اعتماد الطالب وتجهيزه للحساب
                             </button>
-                        ) : (
+                        ) : isAccount ? (
                             <button
                                 onClick={handleSuspend}
                                 className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-bold text-red-600 shadow-sm hover:bg-red-50 transition-all hover:-translate-y-0.5"
                             >
                                 🚫 تجميد الحساب
                             </button>
+                        ) : (
+                            <Link
+                                href="/admin/accounts"
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-primary-600/10 hover:bg-primary-700 transition-all hover:-translate-y-0.5"
+                            >
+                                جاهز - إنشاء الحساب من إدارة الحسابات
+                            </Link>
                         )}
                     </div>
                 </div>

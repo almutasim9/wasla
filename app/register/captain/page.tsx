@@ -22,6 +22,8 @@ export default function CaptainApplyPage() {
     });
 
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState("");
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -39,17 +41,32 @@ export default function CaptainApplyPage() {
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setSubmitError("");
         const payload = {
-            ...formData,
+            fullName: formData.fullName,
+            phone: formData.phone,
             carBrand:
                 formData.carBrand === "other"
                     ? formData.customCarBrand
                     : formData.carBrand,
+            carModel: formData.carModel,
+            modelYear: formData.modelYear,
+            plateNumber: formData.plateNumber,
+            city: formData.city,
+            areaName: formData.areaName,
+            registrationTypes: formData.registrationTypes,
         };
-        addCaptainRegistration(payload);
-        setSubmitted(true);
+        try {
+            await addCaptainRegistration(payload);
+            setSubmitted(true);
+        } catch {
+            setSubmitError("تعذر حفظ طلبك في قاعدة البيانات. يرجى المحاولة لاحقاً.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Generate year options (current year down to 2000)
@@ -209,6 +226,11 @@ export default function CaptainApplyPage() {
                     {/* Form card */}
                     <form onSubmit={handleSubmit}>
                         <div className="rounded-3xl bg-white border border-border shadow-sm p-6 sm:p-8 space-y-5">
+                            {submitError && (
+                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                                    {submitError}
+                                </div>
+                            )}
                             {/* ── Personal Info ── */}
                             <div className="pb-4 border-b border-border">
                                 <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
@@ -543,10 +565,10 @@ export default function CaptainApplyPage() {
                             {/* Submit */}
                             <button
                                 type="submit"
-                                disabled={formData.registrationTypes.length === 0}
+                                disabled={isSubmitting || formData.registrationTypes.length === 0}
                                 className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-secondary-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-secondary-500/25 hover:bg-secondary-600 hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-lg"
                             >
-                                إرسال طلب الانضمام
+                                {isSubmitting ? "جاري الحفظ..." : "إرسال طلب الانضمام"}
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     className="h-5 w-5 rotate-180"
