@@ -15,6 +15,8 @@ import {
 const keys = {
     captainApplications: "wasla:captain-applications",
     pipelineApplications: "wasla:pipeline-applications",
+    studentApplications: "wasla:student-applications",
+    studentPipelineApplications: "wasla:student-pipeline-applications",
     captains: "wasla:captains",
     students: "wasla:students",
     subscriptions: "wasla:subscriptions",
@@ -26,6 +28,8 @@ const keys = {
 const tableNames = {
     captainApplications: "captain_applications",
     pipelineApplications: "pipeline_applications",
+    studentApplications: "student_applications",
+    studentPipelineApplications: "student_pipeline",
     captains: "captains",
     students: "students",
     subscriptions: "subscriptions",
@@ -42,6 +46,12 @@ export type AdminUser = {
 };
 
 export const defaultAdmins: AdminUser[] = [];
+
+const emptyCaptainApplications: CaptainApplication[] = [];
+const emptyPipelineApplications: PipelineApplication[] = [];
+const emptyStudentApplications: StudentApplication[] = [];
+const emptyCaptains: Captain[] = [];
+const emptyStudents: StudentApplication[] = [];
 
 export type FormSettings = {
     student: {
@@ -166,6 +176,14 @@ function writeValue<T>(key: string, value: T) {
     window.dispatchEvent(new Event(key));
 }
 
+function logSupabaseWarning(action: string, tableName: string, error: unknown) {
+    const message =
+        typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message?: unknown }).message)
+            : String(error);
+    console.warn(`Supabase ${action} failed for ${tableName}: ${message}`);
+}
+
 function mergeFormSettings(value: FormSettings): FormSettings {
     return {
         student: { ...defaultFormSettings.student, ...value.student },
@@ -181,7 +199,7 @@ async function fetchCloudCollection<T extends Identified>(tableName: string, fal
     try {
         const { data, error } = await supabase.from(tableName).select("*");
         if (error) {
-            console.error(`Supabase error fetching ${tableName}:`, error);
+            logSupabaseWarning("fetch", tableName, error);
             return fallback;
         }
         if (data && data.length > 0) {
@@ -190,7 +208,7 @@ async function fetchCloudCollection<T extends Identified>(tableName: string, fal
 
         return fallback;
     } catch (e) {
-        console.error(`Network error fetching ${tableName}:`, e);
+        logSupabaseWarning("network fetch", tableName, e);
         return fallback;
     }
 }
@@ -199,10 +217,13 @@ async function saveCloudItem<T extends Identified>(tableName: string, item: T) {
     try {
         const { error } = await supabase.from(tableName).upsert(item);
         if (error) {
-            console.error(`Supabase error saving item to ${tableName}:`, error);
+            logSupabaseWarning("save item", tableName, error);
+            return false;
         }
+        return true;
     } catch (e) {
-        console.error(`Network error saving item to ${tableName}:`, e);
+        logSupabaseWarning("network save item", tableName, e);
+        return false;
     }
 }
 
@@ -210,10 +231,13 @@ async function saveCloudCollection<T extends Identified>(tableName: string, item
     try {
         const { error } = await supabase.from(tableName).upsert(items);
         if (error) {
-            console.error(`Supabase error saving collection to ${tableName}:`, error);
+            logSupabaseWarning("save collection", tableName, error);
+            return false;
         }
+        return true;
     } catch (e) {
-        console.error(`Network error saving collection to ${tableName}:`, e);
+        logSupabaseWarning("network save collection", tableName, e);
+        return false;
     }
 }
 
@@ -279,7 +303,7 @@ export function useCaptainApplications() {
     return useStoredCollection<CaptainApplication>(
         keys.captainApplications,
         tableNames.captainApplications,
-        []
+        emptyCaptainApplications
     );
 }
 
@@ -287,7 +311,23 @@ export function usePipelineApplications() {
     return useStoredCollection<PipelineApplication>(
         keys.pipelineApplications,
         tableNames.pipelineApplications,
-        []
+        emptyPipelineApplications
+    );
+}
+
+export function useStudentApplications() {
+    return useStoredCollection<StudentApplication>(
+        keys.studentApplications,
+        tableNames.studentApplications,
+        emptyStudentApplications
+    );
+}
+
+export function useStudentPipelineApplications() {
+    return useStoredCollection<StudentApplication>(
+        keys.studentPipelineApplications,
+        tableNames.studentPipelineApplications,
+        emptyStudentApplications
     );
 }
 
@@ -295,7 +335,7 @@ export function useCaptains() {
     return useStoredCollection<Captain>(
         keys.captains,
         tableNames.captains,
-        [],
+        emptyCaptains,
         true
     );
 }
@@ -304,7 +344,7 @@ export function useStudents() {
     return useStoredCollection<StudentApplication>(
         keys.students,
         tableNames.students,
-        [],
+        emptyStudents,
         true
     );
 }
@@ -436,6 +476,10 @@ function today() {
     return new Date().toISOString().split("T")[0];
 }
 
+function uuid() {
+    return crypto.randomUUID();
+}
+
 export type StudentRegistrationPayload = {
     fullName: string;
     gender: StudentGender;
@@ -459,10 +503,10 @@ export type CaptainRegistrationPayload = {
     registrationTypes: RegistrationType[];
 };
 
-export function addStudentRegistration(payload: StudentRegistrationPayload) {
-    const students = readCollection<StudentApplication>(keys.students, []);
+export async function addStudentRegistration(payload: StudentRegistrationPayload) {
+    const applications = readCollection<StudentApplication>(keys.studentApplications, []);
     const createdAt = today();
-    const student: StudentApplication = {
+    const application: StudentApplication = {
         id: uniqueId("s"),
         fullName: payload.fullName,
         gender: payload.gender,
@@ -481,13 +525,85 @@ export function addStudentRegistration(payload: StudentRegistrationPayload) {
         createdAt,
     };
 
+    const saved = await saveCloudItem(tableNames.studentApplications, application);
+    if (!saved) {
+        throw new Error("تعذر حفظ طلب الطالب في Supabase");
+    }
+    writeCollection(keys.studentApplications, [application, ...applications]);
+    return application;
+}
+
+export async function transferStudentApplicationToPipeline(app: StudentApplication) {
+    const applications = readCollection<StudentApplication>(keys.studentApplications, []);
+    const pipeline = readCollection<StudentApplication>(keys.studentPipelineApplications, []);
+    const exists = pipeline.some((item) => item.id === `sp-${app.id}`);
+
+    const updatedApplications = applications.map((item) =>
+        item.id === app.id
+            ? {
+                ...item,
+                timeline: [
+                    ...item.timeline,
+                    { date: today(), action: "تحويل الطلب إلى Pipeline الطلاب", by: "المدير" },
+                ],
+            }
+            : item
+    );
+
+    const pipelineItem: StudentApplication = {
+        ...app,
+        id: `sp-${app.id}`,
+        stage: "new",
+        status: "pending",
+        timeline: [
+            ...app.timeline,
+            { date: today(), action: "تحويل الطلب إلى Pipeline الطلاب", by: "المدير" },
+        ],
+    };
+
+    if (!exists) {
+        const saved = await saveCloudItem(tableNames.studentPipelineApplications, pipelineItem);
+        if (!saved) {
+            throw new Error("تعذر تحويل الطالب إلى Pipeline في Supabase");
+        }
+        writeCollection(keys.studentPipelineApplications, [pipelineItem, ...pipeline]);
+    }
+
+    writeCollection(keys.studentApplications, updatedApplications);
+    const updatedApp = updatedApplications.find((item) => item.id === app.id);
+    if (updatedApp) {
+        saveCloudItem(tableNames.studentApplications, updatedApp);
+    }
+
+    return pipelineItem;
+}
+
+export async function createStudentAccount(app: StudentApplication, passcode?: string) {
+    const students = readCollection<StudentApplication>(keys.students, []);
+    const existingStudent = students.find((student) => student.phone === app.phone);
+    if (existingStudent) return existingStudent;
+
+    const student: StudentApplication = {
+        ...app,
+        id: uuid(),
+        stage: "active",
+        status: "active",
+        passcode: passcode || generateRandomPasscode(),
+        timeline: [
+            ...app.timeline,
+            { date: today(), action: "إنشاء حساب طالب معتمد", by: "المدير" },
+        ],
+    };
+
+    const saved = await saveCloudItem(tableNames.students, student);
+    if (!saved) {
+        throw new Error("تعذر حفظ حساب الطالب في Supabase");
+    }
     writeCollection(keys.students, [student, ...students]);
-    // Save to Supabase Cloud
-    saveCloudItem(tableNames.students, student);
     return student;
 }
 
-export function addCaptainRegistration(payload: CaptainRegistrationPayload) {
+export async function addCaptainRegistration(payload: CaptainRegistrationPayload) {
     const applications = readCollection<CaptainApplication>(
         keys.captainApplications,
         []
@@ -500,9 +616,11 @@ export function addCaptainRegistration(payload: CaptainRegistrationPayload) {
         createdAt,
     };
 
+    const saved = await saveCloudItem(tableNames.captainApplications, application);
+    if (!saved) {
+        throw new Error("تعذر حفظ طلب الكابتن في Supabase");
+    }
     writeCollection(keys.captainApplications, [application, ...applications]);
-    // Save to Supabase Cloud
-    saveCloudItem(tableNames.captainApplications, application);
     return application;
 }
 
@@ -564,13 +682,13 @@ export function generateRandomPasscode(): string {
     return code;
 }
 
-export function createCaptainFromPipeline(app: PipelineApplication, passcode?: string) {
+export async function createCaptainFromPipeline(app: PipelineApplication, passcode?: string) {
     const captains = readCollection<Captain>(keys.captains, []);
     const existingCaptain = captains.find((captain) => captain.phone === app.phone);
     if (existingCaptain) return existingCaptain;
 
     const captain: Captain & { passcode?: string } = {
-        id: `c-${app.id}`,
+        id: uuid(),
         fullName: app.fullName,
         phone: app.phone,
         email: `${app.phone}@wasla.local`,
@@ -587,13 +705,15 @@ export function createCaptainFromPipeline(app: PipelineApplication, passcode?: s
         passcode: passcode || generateRandomPasscode(),
     };
 
+    const saved = await saveCloudItem(tableNames.captains, captain);
+    if (!saved) {
+        throw new Error("تعذر حفظ حساب الكابتن في Supabase");
+    }
     writeCollection(keys.captains, [captain, ...captains]);
-    // Save to Supabase Cloud
-    saveCloudItem(tableNames.captains, captain);
     return captain;
 }
 
-export function addAdminRegistration(payload: { fullName: string; email: string; password?: string }) {
+export async function addAdminRegistration(payload: { fullName: string; email: string; password?: string }) {
     const admins = readCollection<AdminUser>(keys.admins, defaultAdmins);
     const createdAt = today();
     const admin: AdminUser = {
@@ -603,9 +723,11 @@ export function addAdminRegistration(payload: { fullName: string; email: string;
         password: payload.password || "admin123",
         createdAt,
     };
+    const saved = await saveCloudItem(tableNames.admins, admin);
+    if (!saved) {
+        throw new Error("تعذر حفظ حساب المدير في Supabase");
+    }
     writeCollection(keys.admins, [admin, ...admins]);
-    // Save to Supabase Cloud
-    saveCloudItem(tableNames.admins, admin);
     return admin;
 }
 

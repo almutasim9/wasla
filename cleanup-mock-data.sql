@@ -9,6 +9,8 @@ begin;
 truncate table
     subscriptions,
     students,
+    student_pipeline,
+    student_applications,
     captains,
     pipeline_applications,
     captain_applications,
